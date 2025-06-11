@@ -1,103 +1,144 @@
-# 📈 B3 Processor
+Histórico de Negociações B3
 
-Sistema em Go para processar arquivos de negociações da B3 e consultar dados agregados por ticker.
-
----
-
-## 🚀 Pré-requisitos
-
-- Go 1.21+
-- PostgreSQL rodando e acessível
-- Variável de ambiente `DATABASE_URL` configurada com a string de conexão do banco:
-  ```
-  export DATABASE_URL=postgres://user:password@localhost:5432/dbname
-  ```
+Este projeto tem como objetivo processar arquivos de negociações da B3 dos últimos dias úteis, armazenar os dados em um banco de dados PostgreSQL e permitir consultas agregadas por meio de uma interface de linha de comando (CLI).
 
 ---
 
-## ⚙️ Configuração
+## 🚀 Funcionalidades
 
-Clone o projeto e instale as dependências:
+- Processamento eficiente de arquivos CSV da B3
+- Ingestão em paralelo com goroutines
+- Inserção em lote com `pgx.CopyFrom` (alta performance)
+- Consulta agregada por `ticker` e `data`
+- Interface via CLI usando `urfave/cli/v2`
+- Logging estruturado com `zap`
+
+---
+
+## 🧱 Estrutura do Projeto
+
+```
+.
+├── cmd/worker/              # CLI principal
+├── internal/
+│   ├── domain/              # Lógica de negócio (parser, processor, finder)
+│   ├── app/                 # Injeção e orquestração com Fx
+├── pkg/
+│   ├── repository/          # Repositório de acesso ao banco de dados
+│   ├── utils/               # Funções auxiliares (env, etc)
+├── migrations/sql/          # Scripts SQL para criação de tabelas
+├── mocks/                   # Mocks gerados automaticamente
+├── README.md                # Este arquivo
+```
+
+---
+
+## ⚙️ Requisitos
+
+- [Go 1.20+](https://golang.org/)
+- [PostgreSQL](https://www.postgresql.org/)
+- [sqlc](https://sqlc.dev/) (para gerar código de acesso ao banco)
+- Docker (opcional, para ambiente local)
+
+---
+
+## 📦 Instalação
+
+### Clone o repositório
 
 ```bash
-make tidy
+git clone https://github.com/seu-usuario/nome-do-repo.git
+cd nome-do-repo
 ```
 
-Você pode configurar os parâmetros de execução por variáveis de ambiente (valores padrão entre parênteses):
-
-| Variável              | Descrição                              | Padrão            |
-|-----------------------|----------------------------------------|-------------------|
-| `BATCH_SIZE`          | Tamanho do lote de inserção            | `1000`            |
-| `NUM_WORKERS`         | Quantidade de workers                  | `numCPU * 2`      |
-| `MAX_CHANNEL_BUFFER`  | Buffer do canal de trades              | `10000`           |
-| `TICKER_SECONDS`      | Tempo de espera para flush (segundos)  | `2`               |
-| `CSV_DELIMITER`       | Delimitador do arquivo CSV             | `;`               |
-| `SKIP_HEADER`         | Ignora cabeçalho do CSV (`true/false`) | `true`            |
-
----
-
-## 📂 Estrutura dos Arquivos
-
-Os arquivos de entrada devem estar no formato `.txt` com o seguinte layout de colunas:
-
-```
-DataReferencia;CodigoInstrumento;AcaoAtualizacao;PrecoNegocio;QuantidadeNegociada;HoraFechamento;CodigoIdentificadorNegocio;TipoSessaoPregao;DataNegocio;CodigoParticipanteComprador;CodigoParticipanteVendedor
-```
-
-Exemplo de nome de arquivo:
-```
-data/01-06-2025_NEGOCIOSAVISTA.txt
-```
-
----
-
-## 📦 Comandos
-
-### 🔄 Processamento de Arquivos
-
-Processa um ou mais arquivos `.txt` e insere os dados no banco de dados:
+### Gere os arquivos com `sqlc`
 
 ```bash
-go run main.go process --file data/01-06-2025_NEGOCIOSAVISTA.txt
+sqlc generate
 ```
 
-Você pode passar múltiplos arquivos:
+### Configure o banco de dados
+
+Crie um banco PostgreSQL e execute o script de migração inicial:
 
 ```bash
-go run main.go process --file data/03-06-2025_NEGOCIOSAVISTA.txt --file data/02-06-2025_NEGOCIOSAVISTA.txt
+psql -U seu_usuario -d seu_banco < migrations/sql/V1__create_trade_table.sql
 ```
 
 ---
 
-### 🔍 Consulta por Ticker
+## 🛠️ Variáveis de Ambiente
 
-Consulta dados agregados de um ticker:
-
-```bash
-go run main.go query --ticker=WINQ25 --date=2025-06-01
-```
-
-- `--ticker`: **Obrigatório** – símbolo do ticker.
-- `--date`: (opcional) – data inicial no formato `YYYY-MM-DD`.
+| Variável             | Padrão           | Descrição                                      |
+|----------------------|------------------|-----------------------------------------------|
+| `DATABASE_URL`       | -                | String de conexão com o PostgreSQL            |
+| `BATCH_SIZE`         | `1000`           | Quantidade de registros por lote              |
+| `NUM_WORKERS`        | `2 * CPUs`       | Número de goroutines para persistência        |
+| `MAX_CHANNEL_BUFFER` | `10000`          | Buffer do canal entre parser e persistência   |
+| `TICKER_SECONDS`     | `2`              | Intervalo de flush em segundos                |
+| `CSV_DELIMITER`      | `;`              | Separador de campos no CSV                    |
+| `SKIP_HEADER`        | `true`           | Ignorar o cabeçalho do CSV                    |
 
 ---
 
-## ✅ Exemplo de Saída
+## 🧪 Como Rodar
+
+### Processar arquivos CSV:
+
+```bash
+go run cmd/worker/main.go process --file ./dados/NEGOCIOS20240601.txt --file ./dados/NEGOCIOS20240602.txt
+```
+
+### Consultar agregados:
+
+```bash
+go run cmd/worker/main.go query --ticker PETR4 --date 2024-06-01
+```
+
+Saída esperada:
 
 ```text
-Querying data for ticker: WINQ25, starting from: 2025-06-01 00:00:00 -0300 -03
-Summary Trade Result 
- Ticker: WINQ25from
- Max Range Value: 140750.00
- Max Daily Volume: 7
+Summary Trade Result:
+ Ticker: PETR4
+ Max Range Value: 32.50
+ Max Daily Volume: 438000
+```
+
+---
+
+## 🐳 Rodando com Docker
+
+Você pode usar um `docker-compose` como este:
+
+```yaml
+version: "3.8"
+services:
+  db:
+    image: postgres:15
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: b3data
+    volumes:
+      - ./migrations/sql:/docker-entrypoint-initdb.d
 ```
 
 ---
 
 ## 🧪 Testes
 
-Execute os testes com:
+Rode testes unitários:
 
 ```bash
-go test ./...
+go test ./internal/domain/trade/... ./pkg/repository/... -v
 ```
+
+## 🧑‍💻 Autor
+
+Desenvolvido por [Lucas de Leão] - [LinkedIn](https://www.linkedin.com/in/lucas-de-le%C3%A3o-999a73156/)  
+Desafio técnico realizado para [Nome da Empresa]
+
+---
