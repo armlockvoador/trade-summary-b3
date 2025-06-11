@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: negotiation-history-db
+    restart: always
+    environment:
+      POSTGRES_DB: negotiation-history-db
+      POSTGRES_USER: devuser
+      POSTGRES_PASSWORD: devpass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  flyway:
+    image: flyway/flyway:10
+    depends_on:
+      - db
+    volumes:
+      - ./db/migrations:/flyway/sql
+    command: -url=jdbc:postgresql://db:5432/negotiation-history-db -user=devuser -password=devpass migrate
+
+volumes:
+  pgdata:

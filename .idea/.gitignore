@@ -1,0 +1,38 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+
+# Editor-based HTTP Client requests
+/httpRequests/
+
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+
+# Ignorar mocks gerados automaticamente
+/mocks/*
+!mocks/.gitkeep
+/mocks/*.go
+/mocks/**/*.go
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# codegen
+internal/gen/db/*
+!internal/gen/db/sql
+internal/gen/mock
+internal/gen/doc
+
+# IDEs specific files/directories
+NOTES.md
+.devcontainer
+.vscode
+.idea
+
+# Test binary, built with `go test -c`
+*.test
