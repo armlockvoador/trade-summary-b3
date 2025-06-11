@@ -139,6 +139,3 @@ go test ./internal/domain/trade/... ./pkg/repository/... -v
 ## 🧑‍💻 Autor
 
 Desenvolvido por [Lucas de Leão] - [LinkedIn](https://www.linkedin.com/in/lucas-de-le%C3%A3o-999a73156/)  
-Desafio técnico realizado para [Nome da Empresa]
-
----
